@@ -1,4 +1,4 @@
-Given each time frame to phone label probabilities learned from LSTM(Long Short-term Memories), utilize structured learning algorithm(e.g. Hidden Markov Model) to model the phone transition probabilities, see the whole utterance as one training data, and output phone label sequence. The performance is measured by Levenshtein distance(a.k.a. Edit distance).
+Given each time frame to phone label probabilities learned from LSTM(Long Short-term Memory), utilize structured learning algorithm(e.g. Hidden Markov Model) to model the phone transition probabilities, see the whole utterance as one training data, and output phone label sequence. The performance is measured by Levenshtein distance(a.k.a. Edit distance).
  
 Package Dependency: numpy
 Python Version: 3.4
