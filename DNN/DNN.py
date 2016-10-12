@@ -83,7 +83,7 @@ def Direction(ix,grad):
 N = 1100131              #Training set size
 batchsize = 40            
 cons = np.float32(0.033)   #Scaling for random normal initializing 
-archi = 1280              #Architecture - number of neurons
+archi = 128              #Architecture - number of neurons
 srng = RandomStreams(seed=5432)
 
 x = T.fmatrix()
@@ -173,10 +173,12 @@ print("Start Training...")
 
 Accuracy_Record = []
 Cost_Record = []   
-for j in range(20):
+for j in range(1):
     V = Permutate(N)
     Costs = 0
     for i in range(int(N/batchsize)):
+        if i > 1000:
+            break
         batch_X = []; batch_Y = []
         for k in range(batchsize):
             index = next(V)    #retrieve data in a random order 
