@@ -2,14 +2,16 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-10-13 18:55:03
+# @Last Modified time: 2016-10-15 00:42:06
+# flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
+import pandas as pd
 import theano as th
 import theano.tensor as T
 import gc
-import time
 
+from datetime import datetime
 from utils import load_data, load_label, initialize_NNet, maxout, \
                   softmax, update, gen_y_hat, accuracy
 
@@ -69,23 +71,9 @@ def construct_DNN(n_input, n_output, n_hid_layers=2, archi=128,
     return gradient_update, forward
 
 
-def run_model(train_file, train_labfile, valid_ratio=0.05,
-              batchsize=40, epoch=5):
-    st = time.clock()
-
-    print("Start")
-    data = load_data(train_file, nrows=100000)
-    label_data, label_map = load_label(train_labfile)
-
-    # window size = 9, output = 48 phonemes
-    n_input = data.shape[1] * 9
-    n_output = 48
-    N = int(data.shape[0] * (1 - valid_ratio))
-
-    print("Done loading data. Start constructing the model...")
-    gradient_update, forward = construct_DNN(n_input, n_output)
-
-    print("Finish constructing the model. Start Training...")
+def train_model(N, epoch, batchsize, gradient_update, feed_forward,
+                data, label_data, n_output):
+    train_start = datetime.now()
     obj_history = []
     valid_accu = []
     cache = {}
@@ -112,28 +100,102 @@ def run_model(train_file, train_labfile, valid_ratio=0.05,
         print('\tepoch: %d; obj: %.4f' % (j + 1, obj_history[-1]))
 
         # validation set
-        valid_accu.append(accuracy(N, data.shape[0], data, forward, n_output,
-                                   label_data, cache))
+        valid_accu.append(accuracy(N, data.shape[0], data, feed_forward,
+                                   n_output, label_data, cache))
 
-        print("\tCost: %.4f; , %.4f seconds used." %
-              (obj_history[-1], time.clock() - st))
+        print("\tCost: %.4f; , %.4f seconds used.\n" %
+              (obj_history[-1],
+               (datetime.now() - train_start).total_seconds()))
+        # early stop
         if (valid_accu[0] != valid_accu[-1]):
             if valid_accu[-2] * 0.98 > valid_accu[-1]:
                 print("Validation accuracy starts decreasing, stop training")
                 break
 
-    train_accu = accuracy(0, N, data, forward, n_output, label_data, cache)
+    return obj_history, valid_accu, cache
+
+
+def test_predict(test_file, label_map, forward, base_dir, save_prob=False):
+    print("Start predicting...")
+
+    test_data = load_data(test_file, nrows=1000)
+    test_X = []
+    test_N = len(test_data)
+    # generate test input data
+    for i in range(test_N):
+        if i < 4:
+            sils = np.zeros((4 - i) * test_data.shape[1])
+            dat = test_data.iloc[:(i + 5)].values.ravel()
+            test_X.append(np.concatenate((sils, dat)))
+
+        elif i > (test_N - 5):
+            dat = test_data.iloc[(i - 4):].values.ravel()
+            sils = np.zeros((5 - test_N + i) * test_data.shape[1])
+            test_X.append(np.concatenate((dat, sils)))
+
+        else:
+            test_X.append(test_data.iloc[(i - 4):(i + 5)].values.ravel())
+
+    y_test_pred = forward(test_X, np.float32(1.25))
+
+    if save_prob:
+        np.save('ytest_prob', y_test_pred)
+
+    # find the mapping from int to phoneme
+    phoneme_map = {}
+    pmap = pd.read_csv(base_dir + '48_39.map', sep='\t', header=None)
+    for p1, p2 in pmap.values:
+        phoneme_map[p1] = p2
+
+    int_phoneme_map = {}
+    for key, val in label_map.items():
+        int_phoneme_map[val] = phoneme_map[key]
+
+    test_phon = [int_phoneme_map[np.argmax(y_vec)] for y_vec in y_test_pred]
+    data = {'Prediction': test_phon, 'Id': test_data.index.values}
+    test_df = pd.DataFrame(data=data)
+    test_df.to_csv('test_predict', index=None)
+
+
+def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
+              batchsize=40, epoch=5, base_dir='./Data/'):
+    print("Start")
+    st = datetime.now()
+
+    data = load_data(base_dir + train_file, nrows=100000)
+    label_data, label_map = load_label(base_dir + train_labfile)
+
+    # window size = 9, output = 48 phonemes
+    n_input = data.shape[1] * 9
+    n_output = 48
+    N = int(data.shape[0] * (1 - valid_ratio))
+
+    print("Done loading data. Start constructing the model...")
+    gradient_update, feed_forward = construct_DNN(n_input, n_output)
+
+    print("Finish constructing the model. Start Training...")
+    result = train_model(N, epoch, batchsize, gradient_update,
+                         feed_forward, data, label_data, n_output)
+    obj_history, valid_accu, cache = result
+
+    # train accuracy
+    train_accu = accuracy(0, N, data, feed_forward, n_output,
+                          label_data, cache)
     print("Training Accuracy: %.4f %%" % (100 * train_accu))
 
-    valid_accu = accuracy(N, data.shape[0], data, forward,
+    # validation
+    valid_accu = accuracy(N, data.shape[0], data, feed_forward,
                           n_output, label_data, cache)
-
     print("Validation Accuracy: %.4f %%" % (100 * valid_accu))
-    print("Done, Using %.4f seconds." % (time.clock() - st))
+
+    if test_file:
+        test_predict(base_dir + test_file, label_map, feed_forward, base_dir)
+
+    print("Done, Using %s." % str(datetime.now() - st))
 
 
 def main():
-    run_model('train.ark', 'train.lab')
+    run_model('train.ark', 'train.lab', 'test.ark', epoch=1)
 
 
 if __name__ == '__main__':

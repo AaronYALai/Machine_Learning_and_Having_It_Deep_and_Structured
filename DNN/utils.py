@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-10-12 18:01:23
+# @Last Modified time: 2016-10-14 23:27:12
 
 import numpy as np
 import pandas as pd
@@ -14,15 +14,16 @@ from theano.ifelse import ifelse
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
-def load_data(filename, nrows=None):
+def load_data(filename, nrows=None, normalize=True):
     """load data from file, first column as index, dtype=float32"""
     ind = pd.read_csv(filename, sep=' ', header=None, index_col=0, nrows=5)
     dtype_dict = {c: np.float32 for c in ind.columns}
     data = pd.read_csv(filename, sep=' ', header=None, index_col=0,
                        dtype=dtype_dict, nrows=nrows)
     # normalize
-    data = (data - data.mean()) / data.std()
-    gc.collect()
+    if normalize:
+        data = (data - data.mean()) / data.std()
+        gc.collect()
 
     return data
 
