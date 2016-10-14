@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-10-15 00:58:43
+# @Last Modified time: 2016-10-15 01:08:57
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -10,6 +10,10 @@ import pandas as pd
 import theano as th
 import theano.tensor as T
 import gc
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))    # noqa
 
 from datetime import datetime
 from utils import load_data, load_label, initialize_NNet, maxout, \
