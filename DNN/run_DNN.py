@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-10-15 00:42:06
+# @Last Modified time: 2016-10-15 00:58:43
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -195,7 +195,7 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
 
 
 def main():
-    run_model('train.ark', 'train.lab', 'test.ark', epoch=1)
+    run_model('train.data', 'train.label', 'test.data')
 
 
 if __name__ == '__main__':
