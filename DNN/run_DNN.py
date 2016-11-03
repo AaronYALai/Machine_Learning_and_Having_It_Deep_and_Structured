@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:17:57
+# @Last Modified time: 2016-11-03 15:50:36
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -93,8 +93,23 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
 
             # make the minibatch data
             use_inds = indexes[i * batchsize:(i + 1) * batchsize] + 4
-            batch_X = [data.iloc[(ind - 4):(ind + 5)].values.ravel()
-                       for ind in use_inds]
+            batch_X = []
+
+            for ind in use_inds:
+                if ind < 4:
+                    sils = np.zeros((4 - ind) * data.shape[1])
+                    dat = data.iloc[:(ind + 5)].values.ravel()
+                    batch_X.append(np.concatenate((sils, dat)))
+
+                elif ind > (N - 5):
+                    dat = data.iloc[(ind - 4):].values.ravel()
+                    sils = np.zeros((5 - N + ind) * data.shape[1])
+                    batch_X.append(np.concatenate((dat, sils)))
+
+                else:
+                    dat = data.iloc[(ind - 4):(ind + 5)].values.ravel()
+                    batch_X.append(dat)
+
             batch_Y = [gen_y_hat(ind, n_output, data, label_data, cache)
                        for ind in use_inds]
             # update the model
@@ -163,7 +178,8 @@ def test_predict(test_file, label_map, forward, base_dir, save_prob=False,
 
 
 def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
-              batchsize=40, epoch=5, base_dir='./Data/', save_prob=False):
+              batchsize=40, epoch=5, neurons=36, n_hiddenlayer=2,
+              base_dir='./Data/', save_prob=False):
     print("Start")
     st = datetime.now()
 
@@ -176,7 +192,9 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
     N = int(data.shape[0] * (1 - valid_ratio))
 
     print("Done loading data. Start constructing the model...")
-    gradient_update, feed_forward = construct_DNN(n_input, n_output, archi=36)
+    functions = construct_DNN(n_input, n_output, archi=neurons,
+                              n_hid_layers=n_hiddenlayer)
+    gradient_update, feed_forward = functions
 
     print("Finish constructing the model. Start Training...")
     result = train_model(N, epoch, batchsize, gradient_update,
@@ -205,7 +223,8 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
 
 
 def main():
-    run_model('train.data', 'train.label', 'test.data', save_prob=True)
+    run_model('train.data', 'train.label', 'test.data',
+              neurons=256, n_hiddenlayer=3, save_prob=True)
 
 
 if __name__ == '__main__':

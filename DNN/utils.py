@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:11:20
+# @Last Modified time: 2016-11-03 15:45:23
 
 import numpy as np
 import pandas as pd
@@ -131,8 +131,20 @@ def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
     X = []
     y = []
 
-    for ind in range(from_ind + 4, to_ind - 4):
-        X.append(data.iloc[(ind - 4):(ind + 5)].values.ravel())
+    for ind in range(from_ind, to_ind):
+        if ind < from_ind + 4:
+            sils = np.zeros((from_ind + 4 - ind) * data.shape[1])
+            dat = data.iloc[from_ind:(ind + 5)].values.ravel()
+            X.append(np.concatenate((sils, dat)))
+
+        elif ind > (to_ind - 5):
+            dat = data.iloc[(ind - 4):to_ind].values.ravel()
+            sils = np.zeros((5 - to_ind + ind) * data.shape[1])
+            X.append(np.concatenate((dat, sils)))
+
+        else:
+            X.append(data.iloc[(ind - 4):(ind + 5)].values.ravel())
+
         y.append(gen_y_hat(ind, n_output, data, label_data, cache))
 
     # stop_dropout > 1.05 the model won't do dropout
