@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-10-15 01:08:57
+# @Last Modified time: 2016-11-03 15:17:57
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -42,12 +42,12 @@ def construct_DNN(n_input, n_output, n_hid_layers=2, archi=128,
 
     # input layer
     Zs.append(T.dot(x, Ws[0]) + bs[0].dimshuffle('x', 0))
-    As.append(maxout(Zs[0], stop_dropout, 128, dropout_rate) / stop_dropout)
+    As.append(maxout(Zs[0], stop_dropout, archi, dropout_rate) / stop_dropout)
 
     # hidden layers
     for i in range(n_hid_layers):
         Zs.append(T.dot(As[i], Ws[i + 1]) + bs[i + 1].dimshuffle('x', 0))
-        act_out = maxout(Zs[i + 1], stop_dropout, 128, dropout_rate)
+        act_out = maxout(Zs[i + 1], stop_dropout, archi, dropout_rate)
         As.append(act_out / stop_dropout)
 
     # output layer
@@ -119,10 +119,11 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
     return obj_history, valid_accu, cache
 
 
-def test_predict(test_file, label_map, forward, base_dir, save_prob=False):
+def test_predict(test_file, label_map, forward, base_dir, save_prob=False,
+                 filename='test_predict.csv'):
     print("Start predicting...")
 
-    test_data = load_data(test_file, nrows=1000)
+    test_data = load_data(test_file)
     test_X = []
     test_N = len(test_data)
     # generate test input data
@@ -158,15 +159,15 @@ def test_predict(test_file, label_map, forward, base_dir, save_prob=False):
     test_phon = [int_phoneme_map[np.argmax(y_vec)] for y_vec in y_test_pred]
     data = {'Prediction': test_phon, 'Id': test_data.index.values}
     test_df = pd.DataFrame(data=data)
-    test_df.to_csv('test_predict', index=None)
+    test_df.to_csv(filename, index=None)
 
 
 def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
-              batchsize=40, epoch=5, base_dir='./Data/'):
+              batchsize=40, epoch=5, base_dir='./Data/', save_prob=False):
     print("Start")
     st = datetime.now()
 
-    data = load_data(base_dir + train_file, nrows=100000)
+    data = load_data(base_dir + train_file)
     label_data, label_map = load_label(base_dir + train_labfile)
 
     # window size = 9, output = 48 phonemes
@@ -175,7 +176,7 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
     N = int(data.shape[0] * (1 - valid_ratio))
 
     print("Done loading data. Start constructing the model...")
-    gradient_update, feed_forward = construct_DNN(n_input, n_output)
+    gradient_update, feed_forward = construct_DNN(n_input, n_output, archi=36)
 
     print("Finish constructing the model. Start Training...")
     result = train_model(N, epoch, batchsize, gradient_update,
@@ -192,14 +193,19 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
                           n_output, label_data, cache)
     print("Validation Accuracy: %.4f %%" % (100 * valid_accu))
 
+    if save_prob:
+        accuracy(0, data.shape[0], data, feed_forward, n_output,
+                 label_data, cache, save_pred=True, save_name='ytrain_prob')
+
     if test_file:
-        test_predict(base_dir + test_file, label_map, feed_forward, base_dir)
+        test_predict(base_dir + test_file, label_map, feed_forward,
+                     base_dir, save_prob=save_prob)
 
     print("Done, Using %s." % str(datetime.now() - st))
 
 
 def main():
-    run_model('train.data', 'train.label', 'test.data')
+    run_model('train.data', 'train.label', 'test.data', save_prob=True)
 
 
 if __name__ == '__main__':

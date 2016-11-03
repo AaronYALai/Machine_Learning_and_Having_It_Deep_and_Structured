@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:11:20
+# @Last Modified time: 2016-11-03 15:07:30
 
 import numpy as np
 import pandas as pd
@@ -125,8 +125,7 @@ def gen_y_hat(i, n_output, data, label_data, cache):
         return cache[i]
 
 
-def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
-             cache, save_pred=False, save_name='pred_prob'):
+def accuracy(from_ind, to_ind, data, forward, n_output, label_data, cache):
     """compute the accuracy of the model"""
     X = []
     y = []
@@ -137,9 +136,7 @@ def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
 
     # stop_dropout > 1.05 the model won't do dropout
     y_pred = forward(X, 1.25)
-    if save_pred:
-        np.save(save_name, y_pred)
-
+    import pdb.set_trace()
     match = 0
     for i, ind in enumerate(range(from_ind + 4, to_ind - 4)):
         if np.argmax(y_pred[i]) == label_data[1].iloc[ind]:

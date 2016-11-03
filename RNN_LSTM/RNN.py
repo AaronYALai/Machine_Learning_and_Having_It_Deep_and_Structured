@@ -8,13 +8,13 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from collections import defaultdict
 
 start_time = time.clock()
-Data = np.load('prob_t.npz') #DNN's output
+Data = np.load('/Users/aaronlai/Desktop/G/Data/prob_t.npz') #DNN's output
 Data = Data[Data.files[0]]
-F = np.load('TrainID.npz')
+F = np.load('/Users/aaronlai/Desktop/G/Data/TrainID.npz')
 TrainID = F[F.files[0]][0]
 
 Label = {}
-Y = open('train.lab')
+Y = open('../train.lab')
 for line in Y:
     line = line.strip().split(',')
     Label[line[0]] = line[1]
@@ -121,7 +121,7 @@ def Valid_Y():
         return Val_Y
 
 print("Data loaded, using %f seconds"%(time.clock()-start_time))
-
+import pdb;pdb.set_trace()
 #RNN structure
 st = time.clock()
 b = 1    #Batch size
