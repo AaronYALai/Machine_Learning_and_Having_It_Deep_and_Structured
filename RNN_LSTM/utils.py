@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:07:30
+# @Last Modified time: 2016-11-03 17:24:15
 
 import numpy as np
 import pandas as pd
@@ -40,6 +40,22 @@ def load_label(filename):
     return label_data, label_map
 
 
+def make_data(data, prob_file, label_data=None):
+    prob_data = np.load(prob_file)
+    df = pd.DataFrame(data=prob_data, index=data.index)
+    speakers = list(set(['_'.join(name.split('_')[:2]) for name in df.index]))
+
+    X = {}
+    labels = {}
+    for speaker in speakers:
+        speaker_indexes = df.index.str.startswith(speaker)
+        X[speaker] = df.iloc[speaker_indexes].values
+        if label_data is not None:
+            labels[speaker] = label_data.iloc[speaker_indexes].values
+
+    return X, labels
+
+
 def random_number(shape, scale=1):
     return (scale * np.random.randn(*shape)).astype('float32')
 
@@ -47,6 +63,69 @@ def random_number(shape, scale=1):
 def zero_number(shape):
     return np.zeros(shape).astype('float32')
 
+
+def initialize_RNN(n_input, n_output, archi=128,
+                   n_hid_layers=3, scale=0.033):
+    Ws = []
+    bs = []
+    cache_Ws = []
+    cache_bs = []
+
+    Ws.append(th.shared(random_number([n_input, archi], scale=scale)))
+    cache_Ws.append(th.shared(zero_number((n_input, archi))))
+
+    bs.append(th.shared(random_number([archi], scale=scale)))
+    cache_bs.append(th.shared(zero_number(archi)))
+
+x_seq = T.fmatrix()
+y_hat = T.fmatrix()
+ind = T.scalar()    #Help to do minibatch
+bud = T.scalar()    #Help to do Dropout 
+
+cons = 0.001; a=0.0; s=0.01; neuron = 160
+
+a_0 = th.shared(0*np.random.randn(neuron))
+Wi = th.shared(s*np.random.randn(48,neuron))
+bi = th.shared(cons*np.random.randn(neuron)-a)
+
+Wh = th.shared(s*np.identity(neuron)-a)
+Wof = th.shared(s*np.random.randn(2*neuron,neuron)-a)
+Wob = th.shared(s*np.random.randn(2*neuron,neuron)-a)
+bh = th.shared(cons*np.random.randn(neuron)-a)
+bof = th.shared(cons*np.random.randn(neuron)-a)
+bob = th.shared(cons*np.random.randn(neuron)-a)
+"""
+W2h = th.shared(s*np.identity(neuron)-a)
+W2of = th.shared(s*np.random.randn(2*neuron,neuron)-a)
+W2ob = th.shared(s*np.random.randn(2*neuron,neuron)-a)
+b2h = th.shared(cons*np.random.randn(neuron)-a)
+b2of = th.shared(cons*np.random.randn(neuron)-a)
+b2ob = th.shared(cons*np.random.randn(neuron)-a)
+"""
+W3h = th.shared(s*np.identity(neuron)-a)
+W3o = th.shared(s*np.random.randn(2*neuron,48)-a)
+b3h = th.shared(cons*np.random.randn(neuron)-a)
+b3o = th.shared(cons*np.random.randn(48)-a)
+
+Auxiliary = []; Temp = []
+parameters = [Wi,bi,Wh,Wof,Wob,bh,bof,bob,W3h,W3o,b3h,b3o]#W2h,W2of,W2ob,b2h,b2of,b2ob,
+for param in parameters:
+    Auxiliary.append(th.shared(np.zeros(param.get_value().shape)))
+    Temp.append(th.shared(np.zeros(param.get_value().shape)))
+    
+c = 5
+Wi = th.gradient.grad_clip(Wi,-c,c)
+bi = th.gradient.grad_clip(bi,-c,c)
+Wh = th.gradient.grad_clip(Wh,-c,c)
+Wof = th.gradient.grad_clip(Wof,-c,c)
+Wob = th.gradient.grad_clip(Wob,-c,c)
+bh = th.gradient.grad_clip(bh,-c,c)
+bof = th.gradient.grad_clip(bof,-c,c)
+bob = th.gradient.grad_clip(bob,-c,c)
+W3h = th.gradient.grad_clip(W3h,-c,c)
+W3o = th.gradient.grad_clip(W3o,-c,c)
+b3h = th.gradient.grad_clip(b3h,-c,c)
+b3o = th.gradient.grad_clip(b3o,-c,c) 
 
 def initialize_NNet(n_input, n_output, archi=128,
                     n_hid_layers=3, scale=0.033):
@@ -125,18 +204,33 @@ def gen_y_hat(i, n_output, data, label_data, cache):
         return cache[i]
 
 
-def accuracy(from_ind, to_ind, data, forward, n_output, label_data, cache):
+def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
+             cache, save_pred=False, save_name='pred_prob'):
     """compute the accuracy of the model"""
     X = []
     y = []
 
-    for ind in range(from_ind + 4, to_ind - 4):
-        X.append(data.iloc[(ind - 4):(ind + 5)].values.ravel())
+    for ind in range(from_ind, to_ind):
+        if ind < from_ind + 4:
+            sils = np.zeros((from_ind + 4 - ind) * data.shape[1])
+            dat = data.iloc[from_ind:(ind + 5)].values.ravel()
+            X.append(np.concatenate((sils, dat)))
+
+        elif ind > (to_ind - 5):
+            dat = data.iloc[(ind - 4):to_ind].values.ravel()
+            sils = np.zeros((5 - to_ind + ind) * data.shape[1])
+            X.append(np.concatenate((dat, sils)))
+
+        else:
+            X.append(data.iloc[(ind - 4):(ind + 5)].values.ravel())
+
         y.append(gen_y_hat(ind, n_output, data, label_data, cache))
 
     # stop_dropout > 1.05 the model won't do dropout
     y_pred = forward(X, 1.25)
-    import pdb.set_trace()
+    if save_pred:
+        np.save(save_name, y_pred)
+
     match = 0
     for i, ind in enumerate(range(from_ind + 4, to_ind - 4)):
         if np.argmax(y_pred[i]) == label_data[1].iloc[ind]:
