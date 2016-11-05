@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:50:36
+# @Last Modified time: 2016-11-05 21:26:28
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -76,7 +76,7 @@ def construct_DNN(n_input, n_output, n_hid_layers=2, archi=128,
 
 
 def train_model(N, epoch, batchsize, gradient_update, feed_forward,
-                data, label_data, n_output):
+                data, label_data, n_output, dropout_rate):
     train_start = datetime.now()
     obj_history = []
     valid_accu = []
@@ -120,7 +120,7 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
 
         # validation set
         valid_accu.append(accuracy(N, data.shape[0], data, feed_forward,
-                                   n_output, label_data, cache))
+                                   n_output, label_data, cache, dropout_rate))
 
         print("\tCost: %.4f; , %.4f seconds used.\n" %
               (obj_history[-1],
@@ -134,8 +134,8 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
     return obj_history, valid_accu, cache
 
 
-def test_predict(test_file, label_map, forward, base_dir, save_prob=False,
-                 filename='test_predict.csv'):
+def test_predict(test_file, label_map, forward, base_dir, dropout_rate,
+                 save_prob=False, filename='test_predict.csv'):
     print("Start predicting...")
 
     test_data = load_data(test_file)
@@ -156,7 +156,7 @@ def test_predict(test_file, label_map, forward, base_dir, save_prob=False,
         else:
             test_X.append(test_data.iloc[(i - 4):(i + 5)].values.ravel())
 
-    y_test_pred = forward(test_X, np.float32(1.25))
+    y_test_pred = forward(test_X, np.float32(1 / (1 - dropout_rate)))
 
     if save_prob:
         np.save('ytest_prob', y_test_pred)
@@ -179,7 +179,7 @@ def test_predict(test_file, label_map, forward, base_dir, save_prob=False,
 
 def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
               batchsize=40, epoch=5, neurons=36, n_hiddenlayer=2,
-              base_dir='./Data/', save_prob=False):
+              base_dir='./Data/', save_prob=False, dropout_rate=0.2):
     print("Start")
     st = datetime.now()
 
@@ -193,31 +193,34 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
 
     print("Done loading data. Start constructing the model...")
     functions = construct_DNN(n_input, n_output, archi=neurons,
-                              n_hid_layers=n_hiddenlayer)
+                              n_hid_layers=n_hiddenlayer,
+                              dropout_rate=dropout_rate)
     gradient_update, feed_forward = functions
 
     print("Finish constructing the model. Start Training...")
     result = train_model(N, epoch, batchsize, gradient_update,
-                         feed_forward, data, label_data, n_output)
+                         feed_forward, data, label_data, n_output,
+                         dropout_rate)
     obj_history, valid_accu, cache = result
 
     # train accuracy
     train_accu = accuracy(0, N, data, feed_forward, n_output,
-                          label_data, cache)
+                          label_data, cache, dropout_rate)
     print("Training Accuracy: %.4f %%" % (100 * train_accu))
 
     # validation
     valid_accu = accuracy(N, data.shape[0], data, feed_forward,
-                          n_output, label_data, cache)
+                          n_output, label_data, cache, dropout_rate)
     print("Validation Accuracy: %.4f %%" % (100 * valid_accu))
 
     if save_prob:
         accuracy(0, data.shape[0], data, feed_forward, n_output,
-                 label_data, cache, save_pred=True, save_name='ytrain_prob')
+                 label_data, cache, dropout_rate,
+                 save_pred=True, save_name='ytrain_prob')
 
     if test_file:
         test_predict(base_dir + test_file, label_map, feed_forward,
-                     base_dir, save_prob=save_prob)
+                     base_dir, dropout_rate, save_prob=save_prob)
 
     print("Done, Using %s." % str(datetime.now() - st))
 

@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 17:24:15
+# @Last Modified time: 2016-11-05 20:39:56
 
 import numpy as np
 import pandas as pd
@@ -64,112 +64,102 @@ def zero_number(shape):
     return np.zeros(shape).astype('float32')
 
 
+def identity_mat(N, scale):
+    return (scale * np.identity(N)).astype('float32')
+
+
 def initialize_RNN(n_input, n_output, archi=128,
-                   n_hid_layers=3, scale=0.033):
-    Ws = []
-    bs = []
-    cache_Ws = []
-    cache_bs = []
+                   n_hid_layers=2, scale=0.033, scale_b=0.001,
+                   clip_thres=5):
+    W_in_out = []
+    W_out_forward = []
+    W_out_backward = []
+    W_memory = []
 
-    Ws.append(th.shared(random_number([n_input, archi], scale=scale)))
-    cache_Ws.append(th.shared(zero_number((n_input, archi))))
+    b_in_out = []
+    b_out_forward = []
+    b_out_backward = []
+    b_memory = []
 
-    bs.append(th.shared(random_number([archi], scale=scale)))
-    cache_bs.append(th.shared(zero_number(archi)))
-
-x_seq = T.fmatrix()
-y_hat = T.fmatrix()
-ind = T.scalar()    #Help to do minibatch
-bud = T.scalar()    #Help to do Dropout 
-
-cons = 0.001; a=0.0; s=0.01; neuron = 160
-
-a_0 = th.shared(0*np.random.randn(neuron))
-Wi = th.shared(s*np.random.randn(48,neuron))
-bi = th.shared(cons*np.random.randn(neuron)-a)
-
-Wh = th.shared(s*np.identity(neuron)-a)
-Wof = th.shared(s*np.random.randn(2*neuron,neuron)-a)
-Wob = th.shared(s*np.random.randn(2*neuron,neuron)-a)
-bh = th.shared(cons*np.random.randn(neuron)-a)
-bof = th.shared(cons*np.random.randn(neuron)-a)
-bob = th.shared(cons*np.random.randn(neuron)-a)
-"""
-W2h = th.shared(s*np.identity(neuron)-a)
-W2of = th.shared(s*np.random.randn(2*neuron,neuron)-a)
-W2ob = th.shared(s*np.random.randn(2*neuron,neuron)-a)
-b2h = th.shared(cons*np.random.randn(neuron)-a)
-b2of = th.shared(cons*np.random.randn(neuron)-a)
-b2ob = th.shared(cons*np.random.randn(neuron)-a)
-"""
-W3h = th.shared(s*np.identity(neuron)-a)
-W3o = th.shared(s*np.random.randn(2*neuron,48)-a)
-b3h = th.shared(cons*np.random.randn(neuron)-a)
-b3o = th.shared(cons*np.random.randn(48)-a)
-
-Auxiliary = []; Temp = []
-parameters = [Wi,bi,Wh,Wof,Wob,bh,bof,bob,W3h,W3o,b3h,b3o]#W2h,W2of,W2ob,b2h,b2of,b2ob,
-for param in parameters:
-    Auxiliary.append(th.shared(np.zeros(param.get_value().shape)))
-    Temp.append(th.shared(np.zeros(param.get_value().shape)))
-    
-c = 5
-Wi = th.gradient.grad_clip(Wi,-c,c)
-bi = th.gradient.grad_clip(bi,-c,c)
-Wh = th.gradient.grad_clip(Wh,-c,c)
-Wof = th.gradient.grad_clip(Wof,-c,c)
-Wob = th.gradient.grad_clip(Wob,-c,c)
-bh = th.gradient.grad_clip(bh,-c,c)
-bof = th.gradient.grad_clip(bof,-c,c)
-bob = th.gradient.grad_clip(bob,-c,c)
-W3h = th.gradient.grad_clip(W3h,-c,c)
-W3o = th.gradient.grad_clip(W3o,-c,c)
-b3h = th.gradient.grad_clip(b3h,-c,c)
-b3o = th.gradient.grad_clip(b3o,-c,c) 
-
-def initialize_NNet(n_input, n_output, archi=128,
-                    n_hid_layers=3, scale=0.033):
-    """initialize the NNet paramters, archi: hidden layer neurons"""
-    Ws = []
-    bs = []
-    cache_Ws = []
-    cache_bs = []
+    # initial memory
+    a_0 = th.shared(random_number([archi], 0))
 
     # input layer
-    Ws.append(th.shared(random_number([n_input, archi], scale=scale)))
-    cache_Ws.append(th.shared(zero_number((n_input, archi))))
-
-    bs.append(th.shared(random_number([archi], scale=scale)))
-    cache_bs.append(th.shared(zero_number(archi)))
+    W_in_out.append(th.shared(random_number([n_input, archi], scale)))
+    b_in_out.append(th.shared(random_number([archi], scale_b)))
 
     # hidden layers
     for i in range(n_hid_layers):
-        Ws.append(th.shared(random_number([archi / 2, archi], scale=scale)))
-        cache_Ws.append(th.shared(zero_number((archi / 2, archi))))
+        # initialize memory weights as identity matrix
+        W_memory.append(th.shared(identity_mat(archi, scale)))
+        W_out_forward.append(th.shared(random_number([2*archi, archi], scale)))
+        W_out_backward.append(th.shared(random_number([2*archi, archi], scale)))
 
-        bs.append(th.shared(random_number([archi], scale=scale)))
-        cache_bs.append(th.shared(zero_number(archi)))
+        b_memory.append(th.shared(random_number([archi], scale_b)))
+        b_out_forward.append(th.shared(random_number([archi], scale_b)))
+        b_out_backward.append(th.shared(random_number([archi], scale_b)))
+
+    W_memory.append(th.shared(identity_mat(archi, scale)))
+    b_memory.append(th.shared(random_number([archi], scale_b)))
 
     # output layer
-    Ws.append(th.shared(random_number([archi / 2, n_output], scale=scale)))
-    cache_Ws.append(th.shared(zero_number((archi / 2, n_output))))
+    W_in_out.append(th.shared(random_number([2 * archi, n_output], scale)))
+    b_in_out.append(th.shared(random_number([archi], scale_b)))
 
-    bs.append(th.shared(random_number([n_output], scale=scale)))
-    cache_bs.append(th.shared(zero_number(n_output)))
+    param_Ws = [W_in_out, W_out_forward, W_out_backward, W_memory]
+    param_bs = [b_in_out, b_out_forward, b_out_backward, b_memory]
 
-    return Ws, bs, cache_Ws, cache_bs
+    # help to do advanced optimization (ex. NAG, RMSProp)
+    aux_Ws = []
+    aux_bs = []
+
+    # help to do mini-batch update (to store gradients)
+    cache_Ws = []
+    cache_bs = []
+
+    for i in range(4):
+        aux_W = []
+        aux_b = []
+        cache_W = []
+        cache_b = []
+
+        for j in range(len(param_Ws[i])):
+            W_shape = param_Ws[i][j].get_value().shape
+            b_shape = param_bs[i][j].get_value().shape
+
+            aux_W.append(th.shared(zero_number(W_shape)))
+            aux_b.append(th.shared(zero_number(b_shape)))
+
+            cache_W.append(th.shared(zero_number(W_shape)))
+            cache_b.append(th.shared(zero_number(b_shape)))
+
+            # set the restricted numerical range for gradient values
+            param_Ws[i][j] = th.gradient.grad_clip(param_Ws[i][j],
+                                                   -clip_thres, clip_thres)
+
+            param_bs[i][j] = th.gradient.grad_clip(param_bs[i][j],
+                                                   -clip_thres, clip_thres)
+
+        aux_Ws.append(aux_W)
+        aux_bs.append(aux_b)
+
+        cache_Ws.append(cache_W)
+        cache_bs.append(cache_b)
+
+    return param_Ws, param_bs, aux_Ws, aux_bs, cache_Ws, cache_bs, a_0
 
 
-def maxout(Z, stop_dropout, archi, dropout_rate, seed=5432):
-    th.config.floatX = 'float32'
-    Z_out = T.maximum(Z[:, :int(archi / 2)], Z[:, int(archi / 2):])
-    prob = (1 - dropout_rate)
-    srng = RandomStreams(seed=seed)
+def tanh(Z):
+    exp_m2z = T.exp(-2 * Z)
+    return (1 - exp_m2z) / (1 + exp_m2z)
 
-    return ifelse(T.lt(stop_dropout, 1.05),
-                  Z_out * srng.binomial(size=T.shape(Z_out),
-                                        p=prob).astype('float32'),
-                  Z_out)
+
+def sigmoid(Z):
+    return 1 / (1 + T.exp(-Z))
+
+
+def ReLU(Z):
+    return T.switch(Z < 0, 0, Z)
 
 
 def softmax(z):

@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-03 15:45:23
+# @Last Modified time: 2016-11-05 21:25:15
 
 import numpy as np
 import pandas as pd
@@ -126,7 +126,7 @@ def gen_y_hat(i, n_output, data, label_data, cache):
 
 
 def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
-             cache, save_pred=False, save_name='pred_prob'):
+             cache, dropout_rate, save_pred=False, save_name='pred_prob'):
     """compute the accuracy of the model"""
     X = []
     y = []
@@ -148,7 +148,7 @@ def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
         y.append(gen_y_hat(ind, n_output, data, label_data, cache))
 
     # stop_dropout > 1.05 the model won't do dropout
-    y_pred = forward(X, 1.25)
+    y_pred = forward(X, 1 / (1 - dropout_rate))
     if save_pred:
         np.save(save_name, y_pred)
 
