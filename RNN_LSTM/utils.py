@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-05 20:39:56
+# @Last Modified time: 2016-11-06 00:16:14
 
 import numpy as np
 import pandas as pd
@@ -92,15 +92,15 @@ def initialize_RNN(n_input, n_output, archi=128,
     for i in range(n_hid_layers):
         # initialize memory weights as identity matrix
         W_memory.append(th.shared(identity_mat(archi, scale)))
+        b_memory.append(th.shared(random_number([archi], scale_b)))
+
+        if i == (n_hid_layers - 1):
+            continue
+
         W_out_forward.append(th.shared(random_number([2*archi, archi], scale)))
         W_out_backward.append(th.shared(random_number([2*archi, archi], scale)))
-
-        b_memory.append(th.shared(random_number([archi], scale_b)))
         b_out_forward.append(th.shared(random_number([archi], scale_b)))
         b_out_backward.append(th.shared(random_number([archi], scale_b)))
-
-    W_memory.append(th.shared(identity_mat(archi, scale)))
-    b_memory.append(th.shared(random_number([archi], scale_b)))
 
     # output layer
     W_in_out.append(th.shared(random_number([2 * archi, n_output], scale)))
@@ -117,11 +117,15 @@ def initialize_RNN(n_input, n_output, archi=128,
     cache_Ws = []
     cache_bs = []
 
+    parameters = []
     for i in range(4):
         aux_W = []
         aux_b = []
         cache_W = []
         cache_b = []
+
+        parameters += param_Ws[i]
+        parameters += param_bs[i]
 
         for j in range(len(param_Ws[i])):
             W_shape = param_Ws[i][j].get_value().shape
@@ -146,7 +150,7 @@ def initialize_RNN(n_input, n_output, archi=128,
         cache_Ws.append(cache_W)
         cache_bs.append(cache_b)
 
-    return param_Ws, param_bs, aux_Ws, aux_bs, cache_Ws, cache_bs, a_0
+    return param_Ws, param_bs, aux_Ws, aux_bs, cache_Ws, cache_bs, a_0, parameters
 
 
 def tanh(Z):
