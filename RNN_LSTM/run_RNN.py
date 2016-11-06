@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 23:10:39
+# @Last Modified time: 2016-11-06 23:27:42
 
 import numpy as np
 import theano as th
@@ -13,8 +13,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))    # noqa
 
 from datetime import datetime
-from utils import load_data, load_label, make_data, make_y, load_str_map, \
-                  validate, validate_editdist, test_predict
+from shortcuts import load_data, load_label, make_data, make_y, load_str_map,\
+                      validate, validate_editdist, test_predict
 from activation import tanh, sigmoid, ReLU, softmax
 from optimize import sgd, momentum, NAG, RMSProp
 from RNN_utils import initialize_RNN
@@ -188,7 +188,7 @@ def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
 
     data = load_data(base_dir + train_file)
     label_data, label_map = load_label(base_dir + train_labfile)
-    int_str_map = load_str_map(label_map)
+    int_str_map = load_str_map(label_map, base_dir)
     trainX, train_label = make_data(data, base_dir+train_probfile, label_data)
     print('Done loading data, using %s.' % str(datetime.now() - st))
 
@@ -204,8 +204,8 @@ def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
 
     if test_file and test_probfile:
         print('\nPredicting on test set...')
-        test_predict(base_dir + test_file, base_dir + test_probfile,
-                     int_str_map, forward, dropout_rate)
+        test_predict(test_file, test_probfile, int_str_map, forward,
+                     dropout_rate, base_dir=base_dir)
 
     print("Done, Using %s." % str(datetime.now() - st))
 
