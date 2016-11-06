@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 17:33:05
+# @Last Modified time: 2016-11-06 20:45:02
 
 import numpy as np
 import pandas as pd
@@ -70,7 +70,7 @@ def identity_mat(N, scale):
 
 def initialize_RNN(n_input, n_output, archi=128,
                    n_hid_layers=2, scale=0.033, scale_b=0.001,
-                   clip_thres=1.0):
+                   clip_thres=3.0):
     W_in_out = []
     W_out_forward = []
     W_out_backward = []
@@ -200,6 +200,21 @@ def validate(trainX, trainY, valid_speakers, valid, dropout_rate):
     return objective / n_instance
 
 
+def sanity_check(seq, sep=' '):
+    """Sanity Check function to correct unreasonable predictions"""
+    seq = seq.split()
+
+    for i in range(1, len(seq) - 1):
+        # front == behind != me
+        if seq[i - 1] == seq[i + 1] and seq[i] != seq[i - 1]: 
+            seq[i] = seq[i - 1]
+        # me, front, behind are different
+        elif seq[i] != seq[i + 1] and seq[i] != seq[i - 1]:   
+            seq[i] = seq[i - 1]
+
+    return sep.join(seq)
+
+
 def edit_dist(seq1, seq2):
     """edit distance"""
     seq1 = seq1.split()
@@ -228,44 +243,61 @@ def edit_dist(seq1, seq2):
     return d[len(seq1)][len(seq2)]
 
 
-def validate_editdist(trainX, trainY, valid_speakers, forward, dropout_rate, int_phoneme_map):
+def validate_editdist(trainX, trainY, valid_speakers, forward, dropout_rate, int_str_map):
     """Calculate the average edit distance on validation set"""
     stop = 1.0 / (1 - dropout_rate)
 
     valid_seq = []
     valid_yhat_seq = []
     for speaker in valid_speakers:
+        ypred = forward(trainX[speaker], stop)
+        pred_seq = ' '.join([int_str_map[np.argmax(pred)] for pred in ypred])
+        pred_seq = sanity_check(pred_seq)
+
         phoneme_seq = ''
-        last = ''
+        now = ''
+        for p in pred_seq.split():
+            if p != now:
+                phoneme_seq += (p + ' ')
+                now = p
 
-        for pred in forward(trainX[speaker], stop):
-            phoneme = int_phoneme_map[np.argmax(pred)]
-            if last != phoneme:
-                phoneme_seq = phoneme_seq + phoneme + ' '
-            last = phoneme
+        yhat_seq = [int_str_map[np.argmax(l)] for l in trainY[speaker]]
+        yhat = []
+        y_now = ''
 
-        yhat_seq = ' '.join([int_phoneme_map[i] for i in trainY[speaker].ravel()])
+        for y in yhat_seq:
+            if y != y_now:
+                yhat.append(y)
+                y_now = y
+
+        yhat = ' '.join(yhat)
 
         valid_seq.append(phoneme_seq.strip())
-        valid_yhat_seq.append(yhat_seq)
+        valid_yhat_seq.append(yhat)
 
     valid_dist = np.mean([edit_dist(valid_seq[i], valid_yhat_seq[i]) for i in range(len(valid_seq))])
 
     return valid_dist
 
 
-def load_phoneme_map(label_map, base_dir='./'):
+def load_str_map(label_map, base_dir='../Data/'):
     # find the mapping from int to phoneme
     phoneme_map = {}
+    phone_str_map = {}
     pmap = pd.read_csv(base_dir + '48_39.map', sep='\t', header=None)
+    str_map = pd.read_csv(base_dir + '48_idx_chr.map', header=None, delim_whitespace=True)
+
     for p1, p2 in pmap.values:
         phoneme_map[p1] = p2
 
-    int_phoneme_map = {}
-    for key, val in label_map.items():
-        int_phoneme_map[val] = phoneme_map[key]
+    for s1, s2, s3 in str_map.values:
+        phone_str_map[s1] = s3
 
-    return int_phoneme_map
+    int_str_map = {}
+    for key, val in label_map.items():
+        int_str_map[val] = phone_str_map[phoneme_map[key]]
+
+    return int_str_map
 
 
 def update(para, grad, moment_cache, lr, moment):

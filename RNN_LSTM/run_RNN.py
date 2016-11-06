@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 17:38:57
+# @Last Modified time: 2016-11-06 20:47:37
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))    # noqa
 
 from datetime import datetime
 from utils import load_data, load_label, initialize_RNN, tanh, sigmoid, ReLU,\
-                  softmax, update, gen_y_hat, accuracy, make_data, make_y, validate, validate_editdist, load_phoneme_map
+                  softmax, update, gen_y_hat, accuracy, make_data, make_y, validate, validate_editdist, load_str_map, sanity_check
 
 from theano.ifelse import ifelse
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -37,9 +37,9 @@ def set_step(W_memory, b_memory, layer_j, acti_func='ReLU'):
 
     return step
 
-data = load_data('Data/train.data')
-label_data, label_map = load_label('Data/train.label')
-trainX, train_label = make_data(data, 'Data/ytrain_prob.npy', label_data)
+data = load_data('../Data/train.data')
+label_data, label_map = load_label('../Data/train.label')
+trainX, train_label = make_data(data, '../Data/ytrain_prob.npy', label_data)
 
 x_seq = T.fmatrix()
 y_hat = T.fmatrix()
@@ -48,12 +48,13 @@ stop_dropout = T.scalar()
 
 n_input = 48
 n_output = 48
-batchsize = 1
-
-param_Ws, param_bs, auxis, caches, a_0, parameters = initialize_RNN(n_input, n_output)
+batchsize = 4
+n_hid_layers = 2
+archi = 128
+param_Ws, param_bs, auxis, caches, a_0, parameters = initialize_RNN(n_input, n_output, archi=archi, n_hid_layers=n_hid_layers)
 
 # construct RNN
-n_hid_layers = 2
+
 seed = 42
 dropout_rate = 0.2
 srng = RandomStreams(seed=seed)
@@ -145,31 +146,31 @@ def update_by_NAG(parameters, grads, lr, minibatch, batchsize, real_pos, caches,
 
     return updates
 
-#(parameters, grads, lr, minibatch, batchsize, real_pos, caches, const=0.001)
-def update_by_RMSProp(para,grad,ind,Sigma_square,Temp):
+
+def update_by_RMSProp(parameters, grads, lr, minibatch, batchsize, sigma_square, caches, alpha=0.9, const=1e-2):
     """theano update, optimized by RMSProp"""
     updates = []
     update_batch = ifelse(T.lt(minibatch, batchsize - 1), 0, 1)
 
     for ix in range(len(grads)):
-        grad[ix] = T.clip(grad[ix],-1,1)
-        gradient = (grad[ix]+Temp[ix])/b
-        Factor = Sigma_square[ix]*alpha+(1-alpha)*(gradient**2)
-        direction = -(learing_rate)*gradient/(T.sqrt(Factor)+0.001)
-        updates.append((para[ix], (para[ix]+direction)*off_on+para[ix]*(1-off_on)))
-        updates.append((Sigma_square[ix], Factor*off_on+Sigma_square[ix]*(1-off_on)))
-        updates.append((Temp[ix], (Temp[ix]+grad[ix])*(1-off_on)))
+        move = (grads[ix] + caches[ix]) / batchsize
+        factor = sigma_square[ix] * alpha + (1 - alpha) * (move**2)
+        direction = -lr * move / (T.sqrt(factor) + const)
+
+        # update parameters to spy position if reaching batchsize
+        updates.append((parameters[ix], (parameters[ix] + direction) * update_batch + parameters[ix] * (1 - update_batch)))
+        # remember the scaling factors if reaching batchsize
+        updates.append((sigma_square[ix], factor * update_batch + sigma_square[ix] * (1 - update_batch)))
+        # accumulate gradients if not reaching batchsize
+        updates.append((caches[ix], (caches[ix] + grads[ix]) * (1 - update_batch)))
+
     return updates
 
 
-import pdb;pdb.set_trace()
+lr = 1e-3
 
 
-
-lr = 0.00003
-
-
-update_func = update_by_NAG(parameters, grads, lr, minibatch, batchsize, auxis, caches)
+update_func = update_by_RMSProp(parameters, grads, lr, minibatch, batchsize, auxis, caches)
 rnn_train = th.function(inputs=[x_seq, y_hat, minibatch, stop_dropout], outputs=cost,
                         updates=update_func)
 
@@ -181,8 +182,8 @@ for speaker in speakers:
     y = [make_y(lab, n_output) for lab in train_label[speaker].ravel()]
     trainY[speaker] = np.array(y).astype('float32')
 
-epoch = 5
-print_every = 5
+epoch = 10
+print_every = 20
 valid_ratio = 0.2
 
 valid_n = round(len(speakers) * valid_ratio)
@@ -194,7 +195,8 @@ valid_dists = []
 train_cost = []
 valid_cost = []
 
-int_phoneme_map = load_phoneme_map(label_map)
+int_str_map = load_str_map(label_map)
+
 for j in range(epoch):
     objective = 0 
     n_instance = 0
@@ -215,11 +217,49 @@ for j in range(epoch):
                   (train_cost[-1], valid_cost[-1]))
 
             val_editdist = validate_editdist(trainX, trainY, valid_speakers, forward,
-                                    dropout_rate, int_phoneme_map)
+                                    dropout_rate, int_str_map)
             valid_dists.append(val_editdist)
             print("\tEdit distance on validation set: %f" % val_editdist)
 
         minibat_ind = (minibat_ind + 1) % batchsize
 
+
+
+
+
+
+
+test_data = load_data('../Data/test.data')
+testX, _ = make_data(test_data, '../Data/ytest_prob.npy')
+test_speakers = list(testX.keys())
+stop = 1.0 / (1 - dropout_rate)
+
+test_speakers = []
+now_speak = ''
+for s in test_data.index:
+    speaker = '_'.join(s.split('_')[:2])
+    if speaker != now_speak:
+        test_speakers.append(speaker)
+        now_speak = speaker
+
+test_seq = []
+for speaker in test_speakers:
+    pred_seq = forward(testX[speaker], stop)
+    pred_seq = ' '.join([int_str_map[np.argmax(pred)] for pred in pred_seq])
+    pred_seq = sanity_check(pred_seq)
+
+    seq = ''
+    now = ''
+    for p in pred_seq.split():
+        if p != now:
+            seq += p
+            now = p
+
+    test_seq.append(seq)
+
+filename = 'test.csv'
+test_pred = {'id': test_speakers, 'phone_sequence': test_seq}
+test_df = pd.DataFrame(data=test_pred)
+test_df.to_csv(filename, index=None)
 import pdb;pdb.set_trace()
 
