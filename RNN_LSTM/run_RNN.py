@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 16:38:30
+# @Last Modified time: 2016-11-06 17:38:57
 
 import numpy as np
 import pandas as pd
@@ -46,7 +46,11 @@ y_hat = T.fmatrix()
 minibatch = T.scalar()
 stop_dropout = T.scalar()
 
-param_Ws, param_bs, aux_Ws, aux_bs, cache_Ws, cache_bs, a_0, parameters = initialize_RNN(48, 48)
+n_input = 48
+n_output = 48
+batchsize = 1
+
+param_Ws, param_bs, auxis, caches, a_0, parameters = initialize_RNN(n_input, n_output)
 
 # construct RNN
 n_hid_layers = 2
@@ -91,15 +95,83 @@ valid = th.function(inputs=[x_seq, y_hat, minibatch, stop_dropout], outputs=cost
 
 grads = T.grad(cost, parameters, disconnected_inputs='ignore')
 
-def Update(parameters, grads, lr):
-    return [(parameters[i], parameters[i] - lr * grads[i]) for i in range(len(parameters))]
+def update_by_sgd(parameters, grads, lr, minibatch, batchsize, auxis, caches):
+    updates = []
+    update_batch = ifelse(T.lt(minibatch, batchsize - 1), 0, 1)
 
-lr = 1e-2
-batchsize = 1
-n_output = 48
+    for ix in range(len(grads)):
+        # update parameters if reaching batchsize
+        move = -(lr / batchsize) * (caches[ix] + grads[ix])
+        updates.append((parameters[ix], parameters[ix] + move * update_batch))
+        updates.append((caches[ix], (caches[ix] + grads[ix]) * (1 - update_batch)))
 
+    return updates
+
+
+def update_by_momentum(parameters, grads, lr, minibatch, batchsize, momentum, caches, moment=0.95):
+    """theano update, optimized by Momentum"""
+    updates = []
+    update_batch = ifelse(T.lt(minibatch, batchsize - 1), 0, 1)
+
+    for ix in range(len(grads)):
+        direction = moment * momentum[ix] - (lr / batchsize) * (grads[ix] + caches[ix])
+
+        # update parameters if reaching batchsize
+        updates.append((parameters[ix], parameters[ix] + direction * update_batch))
+        # remember the move if updating parameters
+        updates.append((momentum[ix], momentum[ix] * (1 - update_batch) + direction * update_batch))
+        # accumulate gradients if not reaching batchsize
+        updates.append((caches[ix], (caches[ix] + grads[ix]) * (1 - update_batch)))
+
+    return updates
+
+
+def update_by_NAG(parameters, grads, lr, minibatch, batchsize, real_pos, caches, moment=0.95):
+    """theano update, optimized by NAG"""
+    updates = []
+    update_batch = ifelse(T.lt(minibatch, batchsize - 1), 0, 1)
+
+    for ix in range(len(grads)):
+        move = -(lr / batchsize) * (caches[ix] + grads[ix])
+        real_position = parameters[ix] + move
+        spy_position = real_position + moment * (real_position - real_pos[ix])
+
+        # update parameters to spy position if reaching batchsize
+        updates.append((parameters[ix], spy_position * update_batch + parameters[ix] * (1 - update_batch)))
+        # remember the real position if moved parameters
+        updates.append((real_pos[ix], real_position * update_batch + real_pos[ix] * (1 - update_batch)))
+        # accumulate gradients if not reaching batchsize
+        updates.append((caches[ix], (caches[ix] + grads[ix]) * (1 - update_batch)))
+
+    return updates
+
+#(parameters, grads, lr, minibatch, batchsize, real_pos, caches, const=0.001)
+def update_by_RMSProp(para,grad,ind,Sigma_square,Temp):
+    """theano update, optimized by RMSProp"""
+    updates = []
+    update_batch = ifelse(T.lt(minibatch, batchsize - 1), 0, 1)
+
+    for ix in range(len(grads)):
+        grad[ix] = T.clip(grad[ix],-1,1)
+        gradient = (grad[ix]+Temp[ix])/b
+        Factor = Sigma_square[ix]*alpha+(1-alpha)*(gradient**2)
+        direction = -(learing_rate)*gradient/(T.sqrt(Factor)+0.001)
+        updates.append((para[ix], (para[ix]+direction)*off_on+para[ix]*(1-off_on)))
+        updates.append((Sigma_square[ix], Factor*off_on+Sigma_square[ix]*(1-off_on)))
+        updates.append((Temp[ix], (Temp[ix]+grad[ix])*(1-off_on)))
+    return updates
+
+
+import pdb;pdb.set_trace()
+
+
+
+lr = 0.00003
+
+
+update_func = update_by_NAG(parameters, grads, lr, minibatch, batchsize, auxis, caches)
 rnn_train = th.function(inputs=[x_seq, y_hat, minibatch, stop_dropout], outputs=cost,
-                        updates=Update(parameters, grads, lr))
+                        updates=update_func)
 
 
 speakers = sorted(trainX.keys())
@@ -121,7 +193,7 @@ train_speakers = rand_speakers[valid_n:]
 valid_dists = []
 train_cost = []
 valid_cost = []
-import pdb;pdb.set_trace()
+
 int_phoneme_map = load_phoneme_map(label_map)
 for j in range(epoch):
     objective = 0 

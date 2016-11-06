@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 16:38:44
+# @Last Modified time: 2016-11-06 17:33:05
 
 import numpy as np
 import pandas as pd
@@ -70,7 +70,7 @@ def identity_mat(N, scale):
 
 def initialize_RNN(n_input, n_output, archi=128,
                    n_hid_layers=2, scale=0.033, scale_b=0.001,
-                   clip_thres=5):
+                   clip_thres=1.0):
     W_in_out = []
     W_out_forward = []
     W_out_backward = []
@@ -150,7 +150,17 @@ def initialize_RNN(n_input, n_output, archi=128,
         cache_Ws.append(cache_W)
         cache_bs.append(cache_b)
 
-    return param_Ws, param_bs, aux_Ws, aux_bs, cache_Ws, cache_bs, a_0, parameters
+    # concatenate all auxilary and cache parameters
+    auxis = []
+    caches = []
+    for i in range(4):
+        auxis += aux_Ws[i]
+        auxis += aux_bs[i]
+
+        caches += cache_Ws[i]
+        caches += cache_bs[i]
+
+    return param_Ws, param_bs, auxis, caches, a_0, parameters
 
 
 def tanh(Z):
