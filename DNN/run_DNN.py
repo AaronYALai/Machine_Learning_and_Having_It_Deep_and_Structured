@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 18:40:28
+# @Last Modified time: 2016-11-06 22:25:54
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -77,6 +77,7 @@ def construct_DNN(n_input, n_output, n_hid_layers=2, archi=128,
 
 def train_model(N, epoch, batchsize, gradient_update, feed_forward,
                 data, label_data, n_output, dropout_rate):
+    """train the deep neural network"""
     train_start = datetime.now()
     obj_history = []
     valid_accu = []
@@ -136,6 +137,7 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
 
 def test_predict(test_file, label_map, forward, base_dir, dropout_rate,
                  save_prob=False, filename='test_predict.csv'):
+    """predict on test set and output the file"""
     print("Start predicting...")
 
     test_data = load_data(test_file)
