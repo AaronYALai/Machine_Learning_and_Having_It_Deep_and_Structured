@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 23:05:08
+# @Last Modified time: 2016-11-06 23:10:39
 
 import numpy as np
 import theano as th
@@ -176,11 +176,11 @@ def train_RNN(trainX, train_label, forward, valid, rnn_train, n_output,
     return train_cost, valid_cost, valid_dists
 
 
-def run_model(train_file, train_labfile, train_probfile, test_file=None,
-              test_probfile=None, neurons=36, n_hiddenlayer=2, lr=1e-3,
-              acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
-              batchsize=1, epoch=10, valid_ratio=0.1, n_input=48, n_output=48,
-              base_dir='../Data/'):
+def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
+                  test_probfile=None, neurons=36, n_hiddenlayer=2, lr=1e-3,
+                  acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
+                  batchsize=1, epoch=10, valid_ratio=0.1, n_input=48,
+                  n_output=48, base_dir='../Data/'):
     """Run the bidirectional deep recurrent neural network with droput"""
 
     print("Start")
@@ -211,10 +211,10 @@ def run_model(train_file, train_labfile, train_probfile, test_file=None,
 
 
 def main():
-    run_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
-              'ytest_prob.npy', neurons=128, n_hiddenlayer=2, lr=1e-3,
-              acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
-              batchsize=1, epoch=30)
+    run_RNN_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
+                  'ytest_prob.npy', neurons=128, n_hiddenlayer=2, lr=1e-3,
+                  acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
+                  batchsize=1, epoch=30)
 
 
 if __name__ == '__main__':
