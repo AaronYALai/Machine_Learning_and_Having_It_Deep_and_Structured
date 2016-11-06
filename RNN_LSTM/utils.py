@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 00:16:14
+# @Last Modified time: 2016-11-06 16:38:44
 
 import numpy as np
 import pandas as pd
@@ -49,7 +49,7 @@ def make_data(data, prob_file, label_data=None):
     labels = {}
     for speaker in speakers:
         speaker_indexes = df.index.str.startswith(speaker)
-        X[speaker] = df.iloc[speaker_indexes].values
+        X[speaker] = (df.iloc[speaker_indexes].values).astype('float32')
         if label_data is not None:
             labels[speaker] = label_data.iloc[speaker_indexes].values
 
@@ -104,7 +104,7 @@ def initialize_RNN(n_input, n_output, archi=128,
 
     # output layer
     W_in_out.append(th.shared(random_number([2 * archi, n_output], scale)))
-    b_in_out.append(th.shared(random_number([archi], scale_b)))
+    b_in_out.append(th.shared(random_number([n_output], scale_b)))
 
     param_Ws = [W_in_out, W_out_forward, W_out_backward, W_memory]
     param_bs = [b_in_out, b_out_forward, b_out_backward, b_memory]
@@ -170,6 +170,92 @@ def softmax(z):
     Z = T.exp(z)
     results, _ = th.scan(lambda x: x / T.sum(x), sequences=Z)
     return results
+
+
+def make_y(lab, n_output):
+    y = np.zeros(n_output)
+    y[lab] = 1
+    return y
+
+
+def validate(trainX, trainY, valid_speakers, valid, dropout_rate):
+    objective = 0
+    n_instance = 0
+    stop = 1.0 / (1 - dropout_rate)
+
+    for speaker in valid_speakers:
+        objective += valid(trainX[speaker], trainY[speaker], 0, stop)
+        n_instance += trainX[speaker].shape[0]
+
+    return objective / n_instance
+
+
+def edit_dist(seq1, seq2):
+    """edit distance"""
+    seq1 = seq1.split()
+    seq2 = seq2.split()
+
+    d = np.zeros((len(seq1) + 1) * (len(seq2) + 1), dtype=np.uint8)
+    d = d.reshape((len(seq1) + 1, len(seq2) + 1))
+
+    for i in range(len(seq1) + 1):
+        for j in range(len(seq2) + 1):
+            if i == 0:
+                d[0][j] = j
+            elif j == 0:
+                d[i][0] = i
+
+    for i in range(1, len(seq1) + 1):
+        for j in range(1, len(seq2) + 1):
+            if seq1[i - 1] == seq2[j - 1]:
+                d[i][j] = d[i - 1][j - 1]
+            else:
+                substitution = d[i - 1][j - 1] + 1
+                insertion = d[i][j - 1] + 1
+                deletion = d[i - 1][j] + 1
+                d[i][j] = min(substitution, insertion, deletion)
+
+    return d[len(seq1)][len(seq2)]
+
+
+def validate_editdist(trainX, trainY, valid_speakers, forward, dropout_rate, int_phoneme_map):
+    """Calculate the average edit distance on validation set"""
+    stop = 1.0 / (1 - dropout_rate)
+
+    valid_seq = []
+    valid_yhat_seq = []
+    for speaker in valid_speakers:
+        phoneme_seq = ''
+        last = ''
+
+        for pred in forward(trainX[speaker], stop):
+            phoneme = int_phoneme_map[np.argmax(pred)]
+            if last != phoneme:
+                phoneme_seq = phoneme_seq + phoneme + ' '
+            last = phoneme
+
+        yhat_seq = ' '.join([int_phoneme_map[i] for i in trainY[speaker].ravel()])
+
+        valid_seq.append(phoneme_seq.strip())
+        valid_yhat_seq.append(yhat_seq)
+
+    valid_dist = np.mean([edit_dist(valid_seq[i], valid_yhat_seq[i]) for i in range(len(valid_seq))])
+
+    return valid_dist
+
+
+def load_phoneme_map(label_map, base_dir='./'):
+    # find the mapping from int to phoneme
+    phoneme_map = {}
+    pmap = pd.read_csv(base_dir + '48_39.map', sep='\t', header=None)
+    for p1, p2 in pmap.values:
+        phoneme_map[p1] = p2
+
+    int_phoneme_map = {}
+    for key, val in label_map.items():
+        int_phoneme_map[val] = phoneme_map[key]
+
+    return int_phoneme_map
 
 
 def update(para, grad, moment_cache, lr, moment):
