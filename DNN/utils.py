@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-05 21:25:15
+# @Last Modified time: 2016-11-06 18:39:14
 
 import numpy as np
 import pandas as pd
@@ -153,7 +153,7 @@ def accuracy(from_ind, to_ind, data, forward, n_output, label_data,
         np.save(save_name, y_pred)
 
     match = 0
-    for i, ind in enumerate(range(from_ind + 4, to_ind - 4)):
+    for i, ind in enumerate(range(from_ind, to_ind)):
         if np.argmax(y_pred[i]) == label_data[1].iloc[ind]:
             match += 1
 

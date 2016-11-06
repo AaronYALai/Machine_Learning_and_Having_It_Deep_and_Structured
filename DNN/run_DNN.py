@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-05 21:26:28
+# @Last Modified time: 2016-11-06 18:40:28
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -21,7 +21,7 @@ from utils import load_data, load_label, initialize_NNet, maxout, \
 
 
 def construct_DNN(n_input, n_output, n_hid_layers=2, archi=128,
-                  lr=1e-2, batchsize=40, dropout_rate=0.2, moment=0.95):
+                  lr=1e-3, batchsize=40, dropout_rate=0.2, moment=0.95):
     """
     Initialize and construct the deep neural netweok with dropout
     update the DNN using momentum and minibatch
@@ -122,8 +122,8 @@ def train_model(N, epoch, batchsize, gradient_update, feed_forward,
         valid_accu.append(accuracy(N, data.shape[0], data, feed_forward,
                                    n_output, label_data, cache, dropout_rate))
 
-        print("\tCost: %.4f; , %.4f seconds used.\n" %
-              (obj_history[-1],
+        print("\tCost: %.4f; valid accu: %.2f %%, %.4f seconds used.\n" %
+              (obj_history[-1], 100 * valid_accu[-1],
                (datetime.now() - train_start).total_seconds()))
         # early stop
         if (valid_accu[0] != valid_accu[-1]):
@@ -177,9 +177,9 @@ def test_predict(test_file, label_map, forward, base_dir, dropout_rate,
     test_df.to_csv(filename, index=None)
 
 
-def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
-              batchsize=40, epoch=5, neurons=36, n_hiddenlayer=2,
-              base_dir='./Data/', save_prob=False, dropout_rate=0.2):
+def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.1,
+              batchsize=240, epoch=10, neurons=36, n_hiddenlayer=2, lr=1e-2,
+              base_dir='../Data/', save_prob=False, dropout_rate=0.2):
     print("Start")
     st = datetime.now()
 
@@ -193,7 +193,7 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
 
     print("Done loading data. Start constructing the model...")
     functions = construct_DNN(n_input, n_output, archi=neurons,
-                              n_hid_layers=n_hiddenlayer,
+                              n_hid_layers=n_hiddenlayer, lr=lr,
                               dropout_rate=dropout_rate)
     gradient_update, feed_forward = functions
 
@@ -227,7 +227,7 @@ def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.05,
 
 def main():
     run_model('train.data', 'train.label', 'test.data',
-              neurons=256, n_hiddenlayer=3, save_prob=True)
+              neurons=256, n_hiddenlayer=2, save_prob=True)
 
 
 if __name__ == '__main__':
