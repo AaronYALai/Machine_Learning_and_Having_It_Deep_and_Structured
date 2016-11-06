@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 23:00:24
+# @Last Modified time: 2016-11-06 23:05:08
 
 import numpy as np
 import theano as th
@@ -161,14 +161,14 @@ def train_RNN(trainX, train_label, forward, valid, rnn_train, n_output,
                                   valid, dropout_rate)
                 valid_cost.append(v_cost)
 
-                print('\tNow: %d; training costs: %f ; validation Cost: %f' %
-                      (ind, train_cost[-1], valid_cost[-1]))
+                print('\tNow: %d; costs (train): %.4f ; costs (valid): %.4f' %
+                      (j + 1, train_cost[-1], valid_cost[-1]))
 
                 val_dist = validate_editdist(trainX, trainY, valid_speakers,
                                              forward, dropout_rate,
                                              int_str_map)
                 valid_dists.append(val_dist)
-                print("\tEdit distance on validation set: %f" % val_dist)
+                print("\tEdit distance (valid): %.4f\n" % val_dist)
 
             # minibatch indicator plus 1
             minibat_ind = (minibat_ind + 1) % batchsize
@@ -182,6 +182,7 @@ def run_model(train_file, train_labfile, train_probfile, test_file=None,
               batchsize=1, epoch=10, valid_ratio=0.1, n_input=48, n_output=48,
               base_dir='../Data/'):
     """Run the bidirectional deep recurrent neural network with droput"""
+
     print("Start")
     st = datetime.now()
 
@@ -189,7 +190,7 @@ def run_model(train_file, train_labfile, train_probfile, test_file=None,
     label_data, label_map = load_label(base_dir + train_labfile)
     int_str_map = load_str_map(label_map)
     trainX, train_label = make_data(data, base_dir+train_probfile, label_data)
-    print('Done loading data.')
+    print('Done loading data, using %s.' % str(datetime.now() - st))
 
     rnn = construct_RNN(n_input, n_output, n_hiddenlayer, neurons, lr,
                         acti_func, update_by, dropout_rate, batchsize)
@@ -199,7 +200,7 @@ def run_model(train_file, train_labfile, train_probfile, test_file=None,
     print('Start training RNN...')
     train_RNN(trainX, train_label, forward, valid, rnn_train, n_output,
               int_str_map, dropout_rate, batchsize, epoch, valid_ratio)
-    print('Done training.')
+    print('Done training, using %s.' % str(datetime.now() - st))
 
     if test_file and test_probfile:
         print('\nPredicting on test set...')
@@ -213,7 +214,7 @@ def main():
     run_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
               'ytest_prob.npy', neurons=128, n_hiddenlayer=2, lr=1e-3,
               acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
-              batchsize=1, epoch=10)
+              batchsize=1, epoch=30)
 
 
 if __name__ == '__main__':

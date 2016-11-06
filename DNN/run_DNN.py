@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-11 18:46:54
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 22:25:54
+# @Last Modified time: 2016-11-06 23:04:16
 # flag: THEANO_FLAGS='floatX=float32'
 
 import numpy as np
@@ -182,6 +182,7 @@ def test_predict(test_file, label_map, forward, base_dir, dropout_rate,
 def run_model(train_file, train_labfile, test_file=None, valid_ratio=0.1,
               batchsize=240, epoch=10, neurons=36, n_hiddenlayer=2, lr=1e-2,
               base_dir='../Data/', save_prob=False, dropout_rate=0.2):
+    """Run the deep neural network with droput"""
     print("Start")
     st = datetime.now()
 
