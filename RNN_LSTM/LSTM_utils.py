@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-07 02:10:33
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-07 02:15:51
+# @Last Modified time: 2016-11-08 23:38:35
 
 
 import numpy as np
@@ -10,99 +10,99 @@ import theano as th
 
 
 def initialize_LSTM(n_input, n_output, archi=128, n_hid_layers=2,
-                   scale=0.033, scale_b=0.001, clip_thres=3.0):
+                    scale=0.01, scale_b=0.001, clip_thres=1.0):
     """initialize the LSTM paramters, archi: hidden layer neurons"""
     W_in_out = []
-    W_out_forward = []
-    W_out_backward = []
-    W_memory = []
+    W_gate_forward = []
+    W_gate_backward = []
+    W_cell = []
+    W_peephole = []
 
     b_in_out = []
-    b_out_forward = []
-    b_out_backward = []
-    b_memory = []
+    b_gate_forward = []
+    b_gate_backward = []
 
-    # initial memory
+    # initial cell and output h
     a_0 = th.shared(random_number([archi], 0))
-
-    # input layer
-    W_in_out.append(th.shared(random_number([n_input, archi], scale)))
-    b_in_out.append(th.shared(random_number([archi], scale_b)))
+    h_0 = th.shared(random_number([archi], 0))
 
     # hidden layers
     for i in range(n_hid_layers):
-        # initialize memory weights as identity matrix
-        W_memory.append(th.shared(identity_mat(archi, scale)))
-        b_memory.append(th.shared(random_number([archi], scale_b)))
+        # initilize peephole parameters
+        U = th.shared(random_number([archi, archi], scale))
+        Ui = th.shared(random_number([archi, archi], scale))
+        Uf = th.shared(identity_mat(archi, scale))
+        Uo = th.shared(random_number([archi, archi], scale))
+        W_peephole.append([U, Ui, Uf, Uo])
 
-        if i == (n_hid_layers - 1):
-            continue
+        # initialize memory cell paramters
+        Vi = th.shared(random_number([archi, archi], scale))
+        Vf = th.shared(identity_mat(archi, scale))
+        Vo = th.shared(random_number([archi, archi], scale))
+        W_cell.append([Vi, Vf, Vo])
 
-        W_out_forward.append(th.shared(random_number([2*archi, archi], scale)))
-        rand_w = random_number([2*archi, archi], scale)
-        W_out_backward.append(th.shared(rand_w))
-        b_out_forward.append(th.shared(random_number([archi], scale_b)))
-        b_out_backward.append(th.shared(random_number([archi], scale_b)))
+        # input layer
+        if i == 0:
+            Ws, bs = init_gate_params([n_input, archi], [archi],
+                                      scale, scale_b)
 
-    # output layer
-    W_in_out.append(th.shared(random_number([2 * archi, n_output], scale)))
-    b_in_out.append(th.shared(random_number([n_output], scale_b)))
+            W_output = th.shared(random_number([2 * archi, n_output], scale))
+            W_in_out.append(Ws + [W_output])
+            b_in_out.append(bs)
 
-    param_Ws = [W_in_out, W_out_forward, W_out_backward, W_memory]
-    param_bs = [b_in_out, b_out_forward, b_out_backward, b_memory]
+        else:
+            Ws_forw, bs_forw = init_gate_params([2 * archi, archi], [archi],
+                                                scale, scale_b)
+            W_gate_forward.append(Ws_forw)
+            b_gate_forward.append(bs_forw)
+
+            Ws_back, bs_back = init_gate_params([2 * archi, archi], [archi],
+                                                scale, scale_b)
+            W_gate_backward.append(Ws_back)
+            b_gate_backward.append(bs_back)
+
+    param_Ws = [W_in_out, W_gate_forward, W_gate_backward, W_peephole, W_cell]
+    param_bs = [b_in_out, b_gate_forward, b_gate_backward]
+
+    parameters = [w for Ws in param_Ws for W in Ws for w in W]
+    parameters += [b for bs in param_bs for bb in bs for b in bb]
 
     # help to do advanced optimization (ex. NAG, RMSProp)
-    aux_Ws = []
-    aux_bs = []
+    auxis = [th.shared(zero_number(p.get_value().shape)) for p in parameters]
 
     # help to do mini-batch update (to store gradients)
-    cache_Ws = []
-    cache_bs = []
+    caches = [th.shared(zero_number(p.get_value().shape)) for p in parameters]
 
-    parameters = []
-    for i in range(4):
-        aux_W = []
-        aux_b = []
-        cache_W = []
-        cache_b = []
-
-        parameters += param_Ws[i]
-        parameters += param_bs[i]
-
+    # set the restricted numerical range for gradient values
+    for i in range(len(param_Ws)):
         for j in range(len(param_Ws[i])):
-            W_shape = param_Ws[i][j].get_value().shape
-            b_shape = param_bs[i][j].get_value().shape
+            for k in range(len(param_Ws[i][j])):
+                param_Ws[i][j][k] = th.gradient.grad_clip(param_Ws[i][j][k],
+                                                          -clip_thres,
+                                                          clip_thres)
 
-            aux_W.append(th.shared(zero_number(W_shape)))
-            aux_b.append(th.shared(zero_number(b_shape)))
+    for i in range(len(param_bs)):
+        for j in range(len(param_bs[i])):
+            for k in range(len(param_bs[k])):
+                param_bs[i][j][k] = th.gradient.grad_clip(param_bs[i][j][k],
+                                                          -clip_thres,
+                                                          clip_thres)
 
-            cache_W.append(th.shared(zero_number(W_shape)))
-            cache_b.append(th.shared(zero_number(b_shape)))
+    return param_Ws, param_bs, auxis, caches, a_0, h_0, parameters
 
-            # set the restricted numerical range for gradient values
-            param_Ws[i][j] = th.gradient.grad_clip(param_Ws[i][j],
-                                                   -clip_thres, clip_thres)
 
-            param_bs[i][j] = th.gradient.grad_clip(param_bs[i][j],
-                                                   -clip_thres, clip_thres)
+def init_gate_params(W_shape, b_shape, scale, scale_b):
+    W = th.shared(random_number(W_shape, scale))
+    Wi = th.shared(random_number(W_shape, scale))
+    Wf = th.shared(random_number(W_shape, scale) + np.float32(scale / 2))
+    Wo = th.shared(random_number(W_shape, scale))
 
-        aux_Ws.append(aux_W)
-        aux_bs.append(aux_b)
+    b = th.shared(random_number(b_shape, scale_b))
+    bi = th.shared(random_number(b_shape, scale_b))
+    bf = th.shared(random_number(b_shape, scale_b))
+    bo = th.shared(random_number(b_shape, scale_b))
 
-        cache_Ws.append(cache_W)
-        cache_bs.append(cache_b)
-
-    # concatenate all auxilary and cache parameters
-    auxis = []
-    caches = []
-    for i in range(4):
-        auxis += aux_Ws[i]
-        auxis += aux_bs[i]
-
-        caches += cache_Ws[i]
-        caches += cache_bs[i]
-
-    return param_Ws, param_bs, auxis, caches, a_0, parameters
+    return [W, Wi, Wf, Wo], [b, bi, bf, bo]
 
 
 def random_number(shape, scale=1):

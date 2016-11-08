@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 22:51:19
+# @Last Modified time: 2016-11-08 22:40:27
 
 import numpy as np
 import pandas as pd
@@ -64,10 +64,17 @@ def validate(trainX, trainY, valid_speakers, valid, dropout_rate):
     """Calculate the cost value on validation set"""
     objective = 0
     n_instance = 0
-    stop = 1.0 / (1 - dropout_rate)
+
+    if dropout_rate is None:
+        stop = None
+    else:
+        stop = 1.0 / (1 - dropout_rate)
 
     for speaker in valid_speakers:
-        objective += valid(trainX[speaker], trainY[speaker], 0, stop)
+        if stop is None:
+            objective += valid(trainX[speaker], trainY[speaker], 0)
+        else:
+            objective += valid(trainX[speaker], trainY[speaker], 0, stop)
         n_instance += trainX[speaker].shape[0]
 
     return objective / n_instance
@@ -140,12 +147,20 @@ def edit_dist(seq1, seq2):
 def validate_editdist(trainX, trainY, valid_speakers, forward,
                       dropout_rate, int_str_map):
     """Calculate the average edit distance on validation set"""
-    stop = 1.0 / (1 - dropout_rate)
+    if dropout_rate is None:
+        stop = None
+    else:
+        stop = 1.0 / (1 - dropout_rate)
 
     valid_seq = []
     valid_y_seq = []
     for speaker in valid_speakers:
-        ypred = forward(trainX[speaker], stop)
+
+        if stop is None:
+            ypred = forward(trainX[speaker])
+        else:
+            ypred = forward(trainX[speaker], stop)
+
         pred_seq = ' '.join([int_str_map[np.argmax(pred)] for pred in ypred])
         pred_seq = sanity_check(pred_seq)
 
@@ -182,9 +197,12 @@ def test_predict(testfile, testprob_file, int_str_map, forward, dropout_rate,
     """predict on test set and output the file"""
     test_data = load_data(base_dir + testfile)
     testX, _ = make_data(test_data, base_dir + testprob_file)
-
     test_speakers = list(testX.keys())
-    stop = 1.0 / (1 - dropout_rate)
+
+    if dropout_rate is None:
+        stop = None
+    else:
+        stop = 1.0 / (1 - dropout_rate)
 
     test_speakers = []
     now_speak = ''
@@ -196,7 +214,12 @@ def test_predict(testfile, testprob_file, int_str_map, forward, dropout_rate,
 
     test_seq = []
     for speaker in test_speakers:
-        pred_seq = forward(testX[speaker], stop)
+
+        if stop is None:
+            pred_seq = forward(testX[speaker])
+        else:
+            pred_seq = forward(testX[speaker], stop)
+
         pred_seq = [int_str_map[np.argmax(pred)] for pred in pred_seq]
         pred_seq = ' '.join(pred_seq)
         pred_seq = sanity_check(pred_seq)
