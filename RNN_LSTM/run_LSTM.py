@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-06 23:56:38
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-08 23:42:44
+# @Last Modified time: 2016-11-09 00:56:48
 
 import numpy as np
 import theano as th
@@ -50,7 +50,7 @@ def set_step(W_peephole, W_cell):
 
 def construct_LSTM(n_input, n_output, n_hid_layers=2, archi=36, lr=1e-3,
                    update_by='NAG', batchsize=1, scale=0.01,
-                   scale_b=0.001, clip_thres=0.5):
+                   scale_b=0.001, clip_thres=1.0):
     """
     Initialize and construct the bidirectional Long Short-term Memory (LSTM)
     Update the LSTM using minibatch and RMSProp
@@ -78,7 +78,6 @@ def construct_LSTM(n_input, n_output, n_hid_layers=2, archi=36, lr=1e-3,
     # ############ bidirectional Long Short-term Memory ###############
 
     # #### Hidden layers ######
-    #import pdb;pdb.set_trace()
     for l in range(n_hid_layers):
         # computing gates
         if l == 0:
@@ -133,6 +132,7 @@ def construct_LSTM(n_input, n_output, n_hid_layers=2, archi=36, lr=1e-3,
     cost = T.sum((y_seq - y_hat)**2) + minibatch * 0
     valid = th.function(inputs=[x_seq, y_hat, minibatch], outputs=cost)
     grads = T.grad(cost, parameters, disconnected_inputs='ignore')
+    forward_grad = th.function([x_seq, y_hat, minibatch], grads)
 
     # ############ end of construction ###############
 
@@ -141,11 +141,11 @@ def construct_LSTM(n_input, n_output, n_hid_layers=2, archi=36, lr=1e-3,
     lstm_train = th.function(inputs=[x_seq, y_hat, minibatch],
                              outputs=cost, updates=updates)
 
-    return forward, valid, lstm_train
+    return forward, valid, lstm_train, forward_grad
 
 
-def train_LSTM(trainX, train_label, forward, valid, lstm_train, n_output,
-               int_str_map, batchsize, epoch=10, valid_ratio=0.2,
+def train_LSTM(trainX, train_label, forward, valid, lstm_train, forward_grad,
+               n_output, int_str_map, batchsize, epoch=10, valid_ratio=0.2,
                print_every=20):
     """train the deep LSTM neural network"""
     speakers = sorted(trainX.keys())
@@ -216,13 +216,13 @@ def run_LSTM_model(train_file, train_labfile, train_probfile, test_file=None,
 
     lstm = construct_LSTM(n_input, n_output, n_hiddenlayer, neurons, lr,
                           update_by, batchsize)
-    forward, valid, lstm_train = lstm
+    forward, valid, lstm_train, forward_grad = lstm
     print('Done constructing the recurrent nueral network.')
     print('Using %s.\n' % str(datetime.now() - st))
 
     print('Start training LSTM...')
-    train_LSTM(trainX, train_label, forward, valid, lstm_train, n_output,
-               int_str_map, batchsize, epoch, valid_ratio)
+    train_LSTM(trainX, train_label, forward, valid, lstm_train, forward_grad,
+               n_output, int_str_map, batchsize, epoch, valid_ratio)
     print('Done training, using %s.' % str(datetime.now() - st))
 
     if test_file and test_probfile:
@@ -235,8 +235,8 @@ def run_LSTM_model(train_file, train_labfile, train_probfile, test_file=None,
 
 def main():
     run_LSTM_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
-                   'ytest_prob.npy', neurons=36, n_hiddenlayer=2, lr=3e-5,
-                   update_by='NAG', batchsize=1, epoch=30)
+                   'ytest_prob.npy', neurons=36, n_hiddenlayer=2, lr=1e-4,
+                   update_by='NAG', batchsize=1, epoch=200)
 
 
 if __name__ == '__main__':

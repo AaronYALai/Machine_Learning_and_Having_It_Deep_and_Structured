@@ -2,15 +2,15 @@
 # @Author: aaronlai
 # @Date:   2016-11-07 02:10:33
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-08 23:38:35
+# @Last Modified time: 2016-11-09 00:27:23
 
 
 import numpy as np
 import theano as th
 
 
-def initialize_LSTM(n_input, n_output, archi=128, n_hid_layers=2,
-                    scale=0.01, scale_b=0.001, clip_thres=1.0):
+def initialize_LSTM(n_input, n_output, archi=48, n_hid_layers=2,
+                    scale=0.01, scale_b=0.001, clip_thres=0.3):
     """initialize the LSTM paramters, archi: hidden layer neurons"""
     W_in_out = []
     W_gate_forward = []
