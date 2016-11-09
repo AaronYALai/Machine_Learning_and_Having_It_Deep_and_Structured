@@ -2,10 +2,14 @@
 # @Author: aaronlai
 # @Date:   2016-11-09 15:54:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-09 22:19:01
+# @Last Modified time: 2016-11-09 22:35:03
 
 import numpy as np
 import pandas as pd
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))    # noqa
 
 from HMM_utils import load_label, load_str_map, sanity_check, edit_dist
 from collections import defaultdict, Counter
@@ -205,7 +209,7 @@ def run_HMM(train_probfile, train_labfile, test_probfile=None, n_phoneme=48,
 
 def main():
     run_HMM('RNN_trainprob.npy', 'train.label', 'RNN_testprob.npy',
-            duration=3, blending=False, n_bag=10, valid_ratio=0.1,
+            duration=3, blending=True, n_bag=100, valid_ratio=0.2,
             base_dir='../Data/')
 
 

@@ -28,7 +28,7 @@ install:
 
 script:
   - py.test . --cov=./
-  #- flake8 ./
+  - flake8 ./
 
 
 after_success:

@@ -1,4 +1,8 @@
 # ML-Deep-and-Structured
+
+[![Build Status](https://travis-ci.org/AaronYALai/Machine_Learning_and_Having_It_Deep_and_Structured.svg?branch=master)](https://travis-ci.org/AaronYALai/Machine_Learning_and_Having_It_Deep_and_Structured)
+[![Coverage Status](https://coveralls.io/repos/github/AaronYALai/Machine_Learning_and_Having_It_Deep_and_Structured/badge.svg?branch=master)](https://coveralls.io/github/AaronYALai/Machine_Learning_and_Having_It_Deep_and_Structured?branch=master)
+
 Implementation about 
 - Deep Neural Network: Maxout(generalization of ReLU) activation function, Softmax output layer, Cross entropy cost function, Dropout technique, and Momentum optimizations to train a DNN to classify phonemes.  
 - Recurrent Neural Network: Use Bi-directional RNN and LSTM(peephole) with RMSProp/NAG optimization and Dropout technique to improve the results of DNN just trained. 
