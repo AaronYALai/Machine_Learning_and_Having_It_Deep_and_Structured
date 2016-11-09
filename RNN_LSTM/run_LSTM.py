@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-06 23:56:38
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-09 00:56:48
+# @Last Modified time: 2016-11-09 15:06:46
 
 import numpy as np
 import theano as th
@@ -202,7 +202,8 @@ def train_LSTM(trainX, train_label, forward, valid, lstm_train, forward_grad,
 def run_LSTM_model(train_file, train_labfile, train_probfile, test_file=None,
                    test_probfile=None, neurons=36, n_hiddenlayer=2, lr=1e-3,
                    update_by='NAG', batchsize=1, epoch=10, valid_ratio=0.1,
-                   n_input=48, n_output=48, base_dir='../Data/'):
+                   n_input=48, n_output=48, save_prob=False,
+                   base_dir='../Data/'):
     """Run the bidirectional deep Long Short-Term Memory network"""
 
     print("Start")
@@ -228,7 +229,13 @@ def run_LSTM_model(train_file, train_labfile, train_probfile, test_file=None,
     if test_file and test_probfile:
         print('\nPredicting on test set...')
         test_predict(test_file, test_probfile, int_str_map, forward,
-                     None, base_dir=base_dir)
+                     None, base_dir=base_dir, save_prob=save_prob,
+                     prob_filename='LSTM_testprob')
+
+    if save_prob:
+        speakers = sorted(trainX.keys())
+        probs = [forward(trainX[speaker]) for speaker in speakers]
+        np.save('LSTM_trainprob', [probs, speakers])
 
     print("Done, Using %s." % str(datetime.now() - st))
 

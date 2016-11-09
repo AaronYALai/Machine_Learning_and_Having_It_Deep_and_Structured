@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-06 23:27:42
+# @Last Modified time: 2016-11-09 15:07:41
 
 import numpy as np
 import theano as th
@@ -180,7 +180,7 @@ def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
                   test_probfile=None, neurons=36, n_hiddenlayer=2, lr=1e-3,
                   acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
                   batchsize=1, epoch=10, valid_ratio=0.1, n_input=48,
-                  n_output=48, base_dir='../Data/'):
+                  n_output=48, base_dir='../Data/', save_prob=False):
     """Run the bidirectional deep recurrent neural network with droput"""
 
     print("Start")
@@ -205,7 +205,13 @@ def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
     if test_file and test_probfile:
         print('\nPredicting on test set...')
         test_predict(test_file, test_probfile, int_str_map, forward,
-                     dropout_rate, base_dir=base_dir)
+                     dropout_rate, base_dir=base_dir, save_prob=save_prob,
+                     prob_filename='RNN_testprob')
+
+    if save_prob:
+        speakers = sorted(trainX.keys())
+        probs = [forward(trainX[speaker]) for speaker in speakers]
+        np.save('RNN_trainprob', [probs, speakers])
 
     print("Done, Using %s." % str(datetime.now() - st))
 
@@ -214,7 +220,7 @@ def main():
     run_RNN_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
                   'ytest_prob.npy', neurons=128, n_hiddenlayer=2, lr=1e-3,
                   acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
-                  batchsize=1, epoch=30)
+                  batchsize=1, epoch=60)
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-08 22:40:27
+# @Last Modified time: 2016-11-09 15:03:07
 
 import numpy as np
 import pandas as pd
@@ -193,7 +193,8 @@ def validate_editdist(trainX, trainY, valid_speakers, forward,
 
 
 def test_predict(testfile, testprob_file, int_str_map, forward, dropout_rate,
-                 filename='test.csv', base_dir='../Data/'):
+                 filename='test.csv', base_dir='../Data/', save_prob=False,
+                 prob_filename='test_probs'):
     """predict on test set and output the file"""
     test_data = load_data(base_dir + testfile)
     testX, _ = make_data(test_data, base_dir + testprob_file)
@@ -232,6 +233,10 @@ def test_predict(testfile, testprob_file, int_str_map, forward, dropout_rate,
                 now = p
 
         test_seq.append(seq)
+
+    if save_prob:
+        probs = [forward(testX[speaker]) for speaker in test_speakers]
+        np.save(prob_filename, [probs, test_speakers])
 
     test_pred = {'id': test_speakers, 'phone_sequence': test_seq}
     test_df = pd.DataFrame(data=test_pred)
