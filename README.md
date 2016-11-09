@@ -7,7 +7,7 @@ Machine Learning and having it deep and structured
 About
 --------
 
-Implementations and homeworks of the course **Machine Learning and having it deep and structured** of National Taiwan University (offered by [**Hung-yi Lee**](http://speech.ee.ntu.edu.tw/~tlkagk/index.html):
+Implementations and homeworks of the course [**Machine Learning and having it deep and structured**](http://nol.ntu.edu.tw/nol/coursesearch/print_table.php?course_id=942%20U0590&class=&dpt_code=9210&ser_no=51785&semester=104-1&lang=EN) of National Taiwan University (offered by [**Hung-yi Lee**](http://speech.ee.ntu.edu.tw/~tlkagk/index.html)):
 
 - Constructed and trained variants of neural networks by [**Theano**](http://deeplearning.net/software/theano/)
 - Attemped to solve the sequence labeling problem in speech recognition (phoneme labeling)
@@ -15,6 +15,8 @@ Implementations and homeworks of the course **Machine Learning and having it dee
 - Bidirectional Recurrent Neural Network (RNN) with dropout and RMSProp optimization
 - Bidirectional Long-Short Term Memory (LSTM) with peephole and NAG optimization
 - Hidden Markov Model (HMM) on top of RNN to improve the performance
+
+[**Course page**](http://speech.ee.ntu.edu.tw/~tlkagk/courses_MLSD15_2.html)
 
 Syllabus
 --------
@@ -42,7 +44,7 @@ Extensions, New Applications and Trends:
 Content
 --------
 
-Deep Neural Network (DNN)[[kaggle](https://inclass.kaggle.com/c/104-1-mlds-hw1)]:
+Deep Neural Network (DNN)[[kaggle](https://inclass.kaggle.com/c/mlds-hw14)]:
 - Construct and train a deep neural network to classify pronunciation units (phonemes) in each time frame of a speech.
 - Inputs: MFCC features
 - Activation function: **Maxout** (generalization of ReLU, "learnable" activation function) 
@@ -50,7 +52,6 @@ Deep Neural Network (DNN)[[kaggle](https://inclass.kaggle.com/c/104-1-mlds-hw1)]
 - Cost function: cross entropy
 - Optimization: Momentum
 - With **Dropout** technique
-
 
 Bidirectional Recurrent Neural Network (RNN)[[kaggle](https://inclass.kaggle.com/c/104-1-mlds-hw2)]:
 - Construct and train a bidirectional deep recurrent neural network to classify pronunciation units (phonemes) in each time frame of a speech.
@@ -65,12 +66,13 @@ Bidirectional Long-Short Term Memory (LSTM)[[kaggle](https://inclass.kaggle.com/
 - Construct and train a bidirectional deep Long-Short Term Memory to classify pronunciation units (phonemes) in each time frame of a speech.
 - Inputs: prediction probabilities of each class from previous DNN
 - Optimization: Nesterov Accelerated Gradient (NAG)
-- With **peephole** technique
+- With **Peephole**
+- Using grad_clip in theano to prevent **gradient exploding**
 
 Structure Learning (output phone label sequence)[[kaggle](https://inclass.kaggle.com/c/104-1-mlds-hw3)]:
 - On top of results of RNN / LSTM, applies Hidden Markov Model (HMM) to model the phone transition probabilities and further improves the performance of RNN / LSTM on this sequence labeling problem.
-- Inputs: the whole utterance as one training data
-- Outputs: phone label sequence
+- Input: the whole utterance as one training data
+- Output: phone label sequence
 
 The performance is measured by Levenshtein distance (a.k.a. Edit distance).
 
