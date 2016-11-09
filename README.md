@@ -5,3 +5,5 @@ Implementation about
 - Structured learining: On top of results of RNN/LSTM, applying Hidden Markov Model to model the phone transition probabilities and further improves the performance of RNN/LSTM.
 
 The performance is measured by Levenshtein distance(a.k.a. Edit distance).
+
+Given each time frame to phone label probabilities learned from LSTM(Long Short-term Memory), utilize Hidden Markov Model to model the phone transition probabilities, see the whole utterance as one training data, and output phone label sequence. The performance is measured by Levenshtein distance(a.k.a. Edit distance).
