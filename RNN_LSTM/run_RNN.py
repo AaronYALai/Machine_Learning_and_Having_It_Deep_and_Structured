@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-03 11:40:23
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-09 15:07:41
+# @Last Modified time: 2016-11-09 15:28:40
 
 import numpy as np
 import theano as th
@@ -210,7 +210,8 @@ def run_RNN_model(train_file, train_labfile, train_probfile, test_file=None,
 
     if save_prob:
         speakers = sorted(trainX.keys())
-        probs = [forward(trainX[speaker]) for speaker in speakers]
+        stop = 1 / (1 - dropout_rate)
+        probs = [forward(trainX[speaker], stop) for speaker in speakers]
         np.save('RNN_trainprob', [probs, speakers])
 
     print("Done, Using %s." % str(datetime.now() - st))
@@ -220,7 +221,7 @@ def main():
     run_RNN_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
                   'ytest_prob.npy', neurons=128, n_hiddenlayer=2, lr=1e-3,
                   acti_func='ReLU', update_by='RMSProp', dropout_rate=0.2,
-                  batchsize=1, epoch=60)
+                  batchsize=1, epoch=100, save_prob=True)
 
 
 if __name__ == '__main__':

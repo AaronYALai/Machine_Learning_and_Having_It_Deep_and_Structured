@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-11-06 23:56:38
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-09 15:06:46
+# @Last Modified time: 2016-11-09 15:11:55
 
 import numpy as np
 import theano as th
@@ -243,7 +243,7 @@ def run_LSTM_model(train_file, train_labfile, train_probfile, test_file=None,
 def main():
     run_LSTM_model('train.data', 'train.label', 'ytrain_prob.npy', 'test.data',
                    'ytest_prob.npy', neurons=36, n_hiddenlayer=2, lr=1e-4,
-                   update_by='NAG', batchsize=1, epoch=200)
+                   update_by='NAG', batchsize=1, epoch=40, save_prob=True)
 
 
 if __name__ == '__main__':

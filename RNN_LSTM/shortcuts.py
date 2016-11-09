@@ -2,7 +2,7 @@
 # @Author: aaronlai
 # @Date:   2016-10-12 16:25:45
 # @Last Modified by:   AaronLai
-# @Last Modified time: 2016-11-09 15:03:07
+# @Last Modified time: 2016-11-09 15:27:42
 
 import numpy as np
 import pandas as pd
@@ -235,7 +235,14 @@ def test_predict(testfile, testprob_file, int_str_map, forward, dropout_rate,
         test_seq.append(seq)
 
     if save_prob:
-        probs = [forward(testX[speaker]) for speaker in test_speakers]
+        probs = []
+        for speaker in test_speakers:
+            if stop is None:
+                pred_seq = forward(testX[speaker])
+            else:
+                pred_seq = forward(testX[speaker], stop)
+
+            probs.append(pred_seq)
         np.save(prob_filename, [probs, test_speakers])
 
     test_pred = {'id': test_speakers, 'phone_sequence': test_seq}
